@@ -9,23 +9,17 @@ module Sorcery
       def initialize
         super
 
-        # @site           = 'https://graph.facebook.com'
-        # @auth_site      = 'https://www.facebook.com'
-        # @user_info_path = 'me'
-        # @scope          = 'email'
-        # @display        = 'page'
-        # @token_url      = 'oauth/access_token'
-        # @auth_path      = 'dialog/oauth'
-        # @mode           = :query
-        # @parse          = :query
-        # @param_name     = 'access_token'
+        @token_url = 'oauth/token'
+        @auth_path = 'oauth/authorize'
+        @user_info_path = 'me'
       end
 
       def get_user_hash(access_token)
-        response = access_token.get(user_info_path)
+        response = access_token.get(@user_info_path)
 
         auth_hash(access_token).tap do |h|
           h[:user_info] = JSON.parse(response.body)
+          h[:uid] = h[:user_info]['id']
           h[:uid] = h[:user_info]['id']
         end
       end
@@ -33,21 +27,7 @@ module Sorcery
       # calculates and returns the url to which the user should be redirected,
       # to get authenticated at the external provider's site.
       def login_url(_params, _session)
-        authorize_url
-      end
-
-      # overrides oauth2#authorize_url to allow customized scope.
-      def authorize_url
-        # Fix: replace default oauth2 options, specially to prevent the Faraday gem which
-        # concatenates with "/", removing the Facebook api version
-        options = {
-          site:          File.join(@site, api_version.to_s),
-          authorize_url: File.join(@site, api_version.to_s, auth_path),
-          token_url:     token_url
-        }
-
-        @scope = access_permissions.present? ? access_permissions.join(',') : scope
-        super(options)
+        authorize_url authorize_url: @auth_path
       end
 
       # tries to login the user from access token
@@ -56,9 +36,9 @@ module Sorcery
           a[:code] = params[:code] if params[:code]
         end
 
-        get_access_token(args, token_url: token_url, mode: mode,
-                               param_name: param_name, parse: parse)
+        get_access_token(args, token_url: @token_url, token_method: :post)
       end
     end
   end
 end
+
